@@ -7,9 +7,12 @@
             "command": "g++",
             "args": [
                 "-g",
-                "${workspaceFolder}/checkpower.cpp",
+                "${workspaceFolder}/main.cpp",
+                "${workspaceFolder}/network.cpp",
+                "${workspaceFolder}/graphics.cpp",
+                "${workspaceFolder}/window.cpp",
                 "-o",
-                "${workspaceFolder}/checkpower.exe",
+                "${workspaceFolder}/wifi-checker.exe",
                 "-lcomctl32",
                 "-lwlanapi",
                 "-lgdiplus",
@@ -25,9 +28,9 @@
             "detail": "Компиляция с использованием g++"
         },
         {
-            "type": "cppbuild",
             "label": "C/C++: g++.exe сборка активного файла",
-            "command": "C:\\mingw\\bin\\g++.exe",
+            "type": "shell",
+            "command": "C:\\w64devkit\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",

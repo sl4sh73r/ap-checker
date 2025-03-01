@@ -5,14 +5,18 @@
             "name": "GDB Debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/checkpower.exe",
+            "program": "${workspaceFolder}/wifi-checker.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "C:/mingw/bin/gdb.exe",
+            "preLaunchTask": "build",
+            "miDebuggerPath": "gdb",
+            "logging": {
+                "engineLogging": true
+            },
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -20,18 +24,18 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "build",
-            "logging": {
-                "moduleLoad": false,
-                "trace": false,
-                "engineLogging": false,
-                "programOutput": true,
-                "exceptions": true
-            },
-            "postDebugTask": "cleanup",
-            "targetArchitecture": "x86_64",
-            "launchCompleteCommand": "exec-continue",
-            "internalConsoleOptions": "openOnSessionStart"
+            "miDebuggerArgs": "",
+            "customLaunchSetupCommands": [],
+            "launchCompleteCommand": "exec-run",
+            "debugServerPath": "",
+            "debugServerArgs": "",
+            "serverStarted": "",
+            "filterStderr": false,
+            "filterStdout": false,
+            "serverLaunchTimeout": 10000,
+            "internalConsoleOptions": "openOnSessionStart",
+            "showDisplayString": true,
+            "visualizerFile": ""
         }
     ]
 }
