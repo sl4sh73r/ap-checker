@@ -30,7 +30,7 @@
         {
             "label": "C/C++: g++.exe сборка активного файла",
             "type": "shell",
-            "command": "C:\\w64devkit\\bin\\g++.exe",
+            "command": "C:\\mingw\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",

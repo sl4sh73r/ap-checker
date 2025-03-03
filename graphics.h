@@ -5,4 +5,4 @@
 #include <gdiplus.h>
 #include "network.h"
 
-void plot_radar(HDC hdc, const std::vector<Network>& networks, int width, int height, double scale, double sonarAngle);
+void plot_radar(HDC hdc, const std::vector<Network>& networks, int width, int height, double scale, double sonarAngle, const std::map<std::wstring, std::pair<double, double>>& customCoordinates);

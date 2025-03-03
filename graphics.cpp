@@ -1,10 +1,16 @@
 #include "graphics.h"
+#include "network.h" // Включаем заголовочный файл network.h
+#include <windows.h>
+#include <gdiplus.h>
 #include <cmath>
+#include <map>
+#include <vector>
+#include <string>
 #include <iostream>
 
 using namespace Gdiplus;
 
-void plot_radar(HDC hdc, const std::vector<Network>& networks, int width, int height, double scale, double sonarAngle) {
+void plot_radar(HDC hdc, const std::vector<Network>& networks, int width, int height, double scale, double sonarAngle, const std::map<std::wstring, std::pair<double, double>>& customCoordinates) {
     if (hdc == NULL) {
         std::wcerr << L"Invalid HDC" << std::endl;
         return;
@@ -45,25 +51,45 @@ void plot_radar(HDC hdc, const std::vector<Network>& networks, int width, int he
 
     // Отображаем точки и текст
     for (const auto& network : networks) {
-        double r = std::sqrt(network.X * network.X + network.Y * network.Y);
-        double theta = std::atan2(network.Y, network.X);
-        int x = static_cast<int>(centerX + (r / 100) * radius * std::cos(theta));
-        int y = static_cast<int>(centerY + (r / 100) * radius * std::sin(theta));
+        double x, y;
+        auto it = customCoordinates.find(network.SSID);
+        if (it != customCoordinates.end()) {
+            x = it->second.first;
+            y = it->second.second;
+        } else {
+            x = network.X;
+            y = network.Y;
+        }
+
+        double r = std::sqrt(x * x + y * y);
+        double theta = std::atan2(y, x);
+        int drawX = static_cast<int>(centerX + (r / 100) * radius * std::cos(theta));
+        int drawY = static_cast<int>(centerY + (r / 100) * radius * std::sin(theta));
 
         // Проверяем, чтобы текст не накладывался
         for (const auto& other : networks) {
             if (&network != &other) {
-                double otherR = std::sqrt(other.X * other.X + other.Y * other.Y);
-                double otherTheta = std::atan2(other.Y, other.X);
-                int otherX = static_cast<int>(centerX + (otherR / 100) * radius * std::cos(otherTheta));
-                int otherY = static_cast<int>(centerY + (otherR / 100) * radius * std::sin(otherTheta));
-                if (std::abs(x - otherX) < 20 && std::abs(y - otherY) < 20) {
-                    y += 20; // Смещаем текст вниз, если точки слишком близко
+                double otherX = other.X;
+                double otherY = other.Y;
+                auto otherIt = customCoordinates.find(other.SSID);
+                if (otherIt != customCoordinates.end()) {
+                    otherX = otherIt->second.first;
+                    otherY = otherIt->second.second;
+                }
+                double otherR = std::sqrt(otherX * otherX + otherY * otherY);
+                double otherTheta = std::atan2(otherY, otherX);
+                int otherDrawX = static_cast<int>(centerX + (otherR / 100) * radius * std::cos(otherTheta));
+                int otherDrawY = static_cast<int>(centerY + (otherR / 100) * radius * std::sin(otherTheta));
+                if (std::abs(drawX - otherDrawX) < 20 && std::abs(drawY - otherDrawY) < 20) {
+                    drawY += 20; // Смещаем текст вниз, если точки слишком близко
                 }
             }
         }
 
-        graphics.DrawEllipse(&pen, x - 2, y - 2, 4, 4);
-        graphics.DrawString(network.SSID.c_str(), -1, &font, PointF(x, y), &brush);
+        graphics.DrawEllipse(&pen, drawX - 2, drawY - 2, 4, 4);
+        graphics.DrawString(network.SSID.c_str(), -1, &font, PointF(drawX, drawY), &brush);
+
+        // Вывод отладочной информации
+        std::wcout << L"Network: " << network.SSID << L", X: " << x << L", Y: " << y << std::endl;
     }
 }

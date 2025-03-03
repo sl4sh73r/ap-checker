@@ -61,12 +61,37 @@ bool check_wifi_adapter() {
     return hasAdapter;
 }
 
-std::vector<Network> get_wifi_networks() {
-    std::vector<Network> networks;
-    if (!check_wifi_adapter()) {
-        return networks;
+std::vector<WLAN_INTERFACE_INFO> get_wifi_adapters() {
+    std::vector<WLAN_INTERFACE_INFO> adapters;
+    HANDLE hClient = NULL;
+    DWORD dwMaxClient = 2;
+    DWORD dwCurVersion = 0;
+
+    if (WlanOpenHandle(dwMaxClient, NULL, &dwCurVersion, &hClient) != ERROR_SUCCESS) {
+        std::wcerr << L"Failed to open WLAN handle." << std::endl;
+        return adapters;
     }
 
+    PWLAN_INTERFACE_INFO_LIST pIfList = NULL;
+    if (WlanEnumInterfaces(hClient, NULL, &pIfList) != ERROR_SUCCESS) {
+        std::wcerr << L"Failed to enumerate WLAN interfaces." << std::endl;
+        WlanCloseHandle(hClient, NULL);
+        return adapters;
+    }
+
+    if (pIfList != NULL) {
+        for (int i = 0; i < (int)pIfList->dwNumberOfItems; i++) {
+            adapters.push_back(pIfList->InterfaceInfo[i]);
+        }
+        WlanFreeMemory(pIfList);
+    }
+
+    WlanCloseHandle(hClient, NULL);
+    return adapters;
+}
+
+std::vector<Network> get_wifi_networks(const GUID& adapterGuid) {
+    std::vector<Network> networks;
     HANDLE hClient = NULL;
     DWORD dwMaxClient = 2;
     DWORD dwCurVersion = 0;
@@ -76,62 +101,49 @@ std::vector<Network> get_wifi_networks() {
         return networks;
     }
 
-    PWLAN_INTERFACE_INFO_LIST pIfList = NULL;
-    if (WlanEnumInterfaces(hClient, NULL, &pIfList) != ERROR_SUCCESS) {
-        std::wcerr << L"Failed to enumerate WLAN interfaces." << std::endl;
+    // Выполняем сканирование перед получением списка сетей
+    if (WlanScan(hClient, &adapterGuid, NULL, NULL, NULL) != ERROR_SUCCESS) {
+        std::wcerr << L"Failed to scan networks." << std::endl;
         WlanCloseHandle(hClient, NULL);
         return networks;
     }
 
-    if (pIfList != NULL) {
-        for (int i = 0; i < (int)pIfList->dwNumberOfItems; i++) {
-            PWLAN_INTERFACE_INFO pIfInfo = &pIfList->InterfaceInfo[i];
+    PWLAN_BSS_LIST pBssList = NULL;
+    if (WlanGetNetworkBssList(hClient, &adapterGuid, NULL, dot11_BSS_type_any, FALSE, NULL, &pBssList) == ERROR_SUCCESS) {
+        if (pBssList != NULL) {
+            for (unsigned int j = 0; j < pBssList->dwNumberOfItems; j++) {
+                PWLAN_BSS_ENTRY pBssEntry = &pBssList->wlanBssEntries[j];
 
-            // Выполняем сканирование перед получением списка сетей
-            if (WlanScan(hClient, &pIfInfo->InterfaceGuid, NULL, NULL, NULL) != ERROR_SUCCESS) {
-                std::wcerr << L"Failed to scan networks for interface " << i << std::endl;
-                continue;
-            }
-
-            PWLAN_BSS_LIST pBssList = NULL;
-            if (WlanGetNetworkBssList(hClient, &pIfInfo->InterfaceGuid, NULL, dot11_BSS_type_any, FALSE, NULL, &pBssList) == ERROR_SUCCESS) {
-                if (pBssList != NULL) {
-                    for (unsigned int j = 0; j < pBssList->dwNumberOfItems; j++) {
-                        PWLAN_BSS_ENTRY pBssEntry = &pBssList->wlanBssEntries[j];
-
-                        Network network;
-                        network.SSID = convert_ssid(pBssEntry->dot11Ssid.ucSSID, pBssEntry->dot11Ssid.uSSIDLength);
-                        network.BSSID = L"";
-                        for (int k = 0; k < 6; k++) {
-                            wchar_t buffer[3];
-                            swprintf(buffer, 3, L"%02X", pBssEntry->dot11Bssid[k]);
-                            network.BSSID += buffer;
-                            if (k < 5) network.BSSID += L":";
-                        }
-                        network.Signal = pBssEntry->lRssi;
-                        network.Distance = calculate_distance(network.Signal, FREQUENCY);
-                        networks.push_back(network);
-                    }
-                    WlanFreeMemory(pBssList);
+                Network network;
+                network.SSID = convert_ssid(pBssEntry->dot11Ssid.ucSSID, pBssEntry->dot11Ssid.uSSIDLength);
+                network.BSSID = L"";
+                for (int k = 0; k < 6; k++) {
+                    wchar_t buffer[3];
+                    swprintf(buffer, 3, L"%02X", pBssEntry->dot11Bssid[k]);
+                    network.BSSID += buffer;
+                    if (k < 5) network.BSSID += L":";
                 }
-            } else {
-                std::wcerr << L"Failed to get BSS list for interface " << i << std::endl;
+                network.Signal = pBssEntry->lRssi;
+                network.Distance = calculate_distance(network.Signal, FREQUENCY);
+                networks.push_back(network);
             }
+            WlanFreeMemory(pBssList);
         }
-        WlanFreeMemory(pIfList);
+    } else {
+        std::wcerr << L"Failed to get BSS list." << std::endl;
     }
 
     WlanCloseHandle(hClient, NULL);
     return networks;
 }
 
-void calculate_coordinates(std::vector<Network>& networks, std::map<std::wstring, std::pair<double, double>>& savedCoordinates) {
+void calculate_coordinates(std::vector<Network>& networks, std::map<std::wstring, std::pair<double, double>>& savedCoordinates, std::map<std::wstring, double>& savedAngles) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(0, 2 * M_PI);
 
     for (auto& network : networks) {
-        if (savedCoordinates.find(network.SSID) != savedCoordinates.end()) {
+        if (savedCoordinates.find(network.SSID) != savedCoordinates.end() && savedAngles.find(network.SSID) != savedAngles.end()) {
             network.X = savedCoordinates[network.SSID].first;
             network.Y = savedCoordinates[network.SSID].second;
         } else {
@@ -139,6 +151,7 @@ void calculate_coordinates(std::vector<Network>& networks, std::map<std::wstring
             network.X = network.Distance * std::cos(angle);
             network.Y = network.Distance * std::sin(angle);
             savedCoordinates[network.SSID] = {network.X, network.Y};
+            savedAngles[network.SSID] = angle;
         }
     }
 }

@@ -53,7 +53,19 @@
         "xloctime": "cpp",
         "xmemory": "cpp",
         "xtr1common": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "complex": "cpp",
+        "fstream": "cpp",
+        "list": "cpp",
+        "map": "cpp",
+        "random": "cpp",
+        "ratio": "cpp",
+        "stop_token": "cpp",
+        "thread": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "xhash": "cpp",
+        "xtree": "cpp"
     },
     "cSpell.words": [
         "Идентификаторы",
